@@ -7,7 +7,7 @@
     "start": "node app.js"
   },
   "dependencies": {
-    "puppeteer": "^21.3.8"
+    "puppeteer": "^21.3.8",
     "@aws-sdk/client-s3": "^3.758.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
