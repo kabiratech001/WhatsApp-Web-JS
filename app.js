@@ -50,7 +50,7 @@ const client = new Client({
 });
 
 routes(app, client);
-initializeClientWithRetry();;
+initializeClientWithRetry();
 
 client.on("qr", (qr) => qrcode.generate(qr, { small: true }));
 client.on("loading_screen", (percent, message) =>
@@ -60,6 +60,11 @@ client.on("auth_failure", () => log("Authentication failure!"));
 client.on("disconnected", () => log("Client disconnected!"));
 client.on("authenticated", () => log("Client authenticated!"));
 client.on("ready", () => startServer());
+client.on("error", (error) => {
+  log(`Client error: ${error.message}`);
+  // Optionally attempt to reinitialize the client
+  initializeClientWithRetry();
+});
 
 client.on("message", async (message) => {
   const { body, from } = message;
@@ -106,8 +111,8 @@ async function initializeClientWithRetry(maxRetries = 3, retryDelay = 5000) {
 function handleError(server) {
   return (err) => {
     if (err.code === "EADDRINUSE") {
-      console.error(`Port ${PORT} sudah digunakan, mencoba port lain...`);
-      server.listen(0);
+      log(`Port ${PORT} is already in use. Exiting...`);
+      process.exit(1);
     } else {
       throw err;
     }
