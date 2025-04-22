@@ -50,7 +50,7 @@ const client = new Client({
 });
 
 routes(app, client);
-client.initialize();
+initializeClientWithRetry();;
 
 client.on("qr", (qr) => qrcode.generate(qr, { small: true }));
 client.on("loading_screen", (percent, message) =>
@@ -81,6 +81,26 @@ function startServer() {
 
   const server = app.listen(PORT, () => log(`Server berjalan di port ${PORT}`));
   server.on("error", handleError(server));
+}
+
+
+async function initializeClientWithRetry(maxRetries = 3, retryDelay = 5000) {
+  let attempts = 0;
+  while (attempts < maxRetries) {
+    try {
+      await client.initialize();
+      log("Client initialized successfully!");
+      return;
+    } catch (error) {
+      attempts++;
+      log(`Client initialization failed (attempt ${attempts}/${maxRetries}): ${error.message}`);
+      if (attempts === maxRetries) {
+        log("Max retries reached. Exiting...");
+        process.exit(1);
+      }
+      await new Promise((resolve) => setTimeout(resolve, retryDelay));
+    }
+  }
 }
 
 function handleError(server) {
