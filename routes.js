@@ -14,22 +14,21 @@ module.exports = function (app, client) {
   });
 
   // Route untuk mengirim pesan teks ke id yang diberikan
-router.post('/send-plaintext', verifyKey, async (req, res) => {
-    try {
-        const { message = {}, id } = req.body;
+app.post("/send-plaintext", verifyKey, async (req, res) => {
+  const { message, id } = req.body;
 
-        if (!id || !message.text) {
-            return res.status(400).json({ 
-                error: 'Missing required parameters: id or message content'
-            });
-        }
+  // Check if message is defined and is an object
+  if (!message || typeof message !== "object" || Object.keys(message).length === 0 || !id) {
+    return res.status(400).send("Bad Request: Message and ID are required and message must be a non-empty object!");
+  }
 
-        await client.sendMessage(id, message.text);
-        res.json({ success: true });
-    } catch (error) {
-        console.error('Sending message failed:', error);
-        res.status(500).json({ error: error.message });
-    }
+  try {
+    await txtContent(client, message, id);
+    const name = await getChatName(client, id);
+    res.send(`Pesan berhasil dikirim ke ${name}!`);
+  } catch (error) {
+    res.status(500).send(`Failed to send message: ${error.message}`);
+  }
 
     try {
       await txtContent(client, message, id);
