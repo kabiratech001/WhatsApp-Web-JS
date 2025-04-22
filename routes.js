@@ -14,11 +14,21 @@ module.exports = function (app, client) {
   });
 
   // Route untuk mengirim pesan teks ke id yang diberikan
-  app.post("/send-plaintext", verifyKey, async (req, res) => {
-    const { message, id } = req.body;
+router.post('/send-plaintext', verifyKey, async (req, res) => {
+    try {
+        const { message = {}, id } = req.body;
 
-    if (Object.keys(message).length === 0 || !id) {
-      return res.status(400).send("Bad Request: Message and ID are required!");
+        if (!id || !message.text) {
+            return res.status(400).json({ 
+                error: 'Missing required parameters: id or message content'
+            });
+        }
+
+        await client.sendMessage(id, message.text);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Sending message failed:', error);
+        res.status(500).json({ error: error.message });
     }
 
     try {
