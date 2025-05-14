@@ -8,11 +8,19 @@ const routes = require("./routes");
 const { exec } = require("child_process");
 
 const app = express();
-const { PORT = 3113 } = process.env;
+
+// Use process.env.PORT directly without fallback for Heroku
+const PORT = process.env.PORT || 3000; // Fallback only for local testing
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.text());
 app.use(express.urlencoded({ extended: true }));
+
+// Start server immediately
+const server = app.listen(PORT, () => {
+  log(`Server running on port ${PORT}`);
+});
+server.on("error", handleError(server));
 
 const client = new Client({
   puppeteer: {
@@ -25,7 +33,7 @@ const client = new Client({
       "--disable-gpu",
       "--no-first-run",
       "--no-zygote",
-      "--single-process", // Use single-process mode to reduce memory usage
+      "--single-process",
       "--disable-background-timer-throttling",
       "--disable-backgrounding-occluded-windows",
       "--disable-breakpad",
@@ -43,7 +51,7 @@ const client = new Client({
       "--ignore-certificate-errors",
       "--log-level=3",
     ],
-    timeout: 60000, // Increase timeout to 60 seconds
+    timeout: 60000,
   },
   authStrategy: new LocalAuth(),
   dataPath: "session",
@@ -57,12 +65,14 @@ client.on("loading_screen", (percent, message) =>
   log(`Loading: ${percent}% - ${message}`)
 );
 client.on("auth_failure", () => log("Authentication failure!"));
-client.on("disconnected", () => log("Client disconnected!"));
+client.on("disconnected", () => {
+  log("Client disconnected!");
+  initializeClientWithRetry(); // Retry initialization on disconnect
+});
 client.on("authenticated", () => log("Client authenticated!"));
-client.on("ready", () => startServer());
+client.on("ready", () => log("WhatsApp API is ready to use!"));
 client.on("error", (error) => {
   log(`Client error: ${error.message}`);
-  // Optionally attempt to reinitialize the client
   initializeClientWithRetry();
 });
 
@@ -81,13 +91,6 @@ function log(message) {
   console.log(message);
 }
 
-function startServer() {
-  log("WhatsApp API is ready to use!");
-
-  const server = app.listen(PORT, () => log(`Server running on port ${PORT}`));
-  server.on("error", handleError(server));
-}
-
 async function initializeClientWithRetry(maxRetries = 3, retryDelay = 5000) {
   let attempts = 0;
   while (attempts < maxRetries) {
@@ -99,8 +102,8 @@ async function initializeClientWithRetry(maxRetries = 3, retryDelay = 5000) {
       attempts++;
       log(`Client initialization failed (attempt ${attempts}/${maxRetries}): ${error.message}`);
       if (attempts === maxRetries) {
-        log("Max retries reached. Exiting...");
-        process.exit(1);
+        log("Max retries reached. Server remains running.");
+        // Don't exit; let server continue
       }
       await new Promise((resolve) => setTimeout(resolve, retryDelay));
     }
